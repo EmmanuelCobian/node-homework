@@ -78,6 +78,7 @@ To install PostgreSQL, you will need to assign a password for PostgreSQL itself 
 The installer for PostgreSQL for Windows is [here](https://www.postgresql.org/download/windows). Run the install program, accepting all default values. You can watch [this](https://youtu.be/GpqJzWCcQXY?si=2ebcJ6FqmGkLChJL) video from 0:00 - 6:00 to make sure the application is installed correctly.
 
 Once the installation is complete, open the Windows Services panel (_Task Manager_) and verify that the Postgresql service is running. Then open a **`cmd`** prompt (**not Git Bash**) and type the following command, then press "Enter".
+
 **Note**: You need to check your installed **PostgreSQL version**. The command below uses PostgreSQL version **17**.
 
 ```
