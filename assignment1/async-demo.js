@@ -4,6 +4,10 @@ const path = require("path");
 // Write a sample file for demonstration
 const filePath = path.join(__dirname, "sample-files", "sample.txt");
 
+fs.writeFile(filePath, "Hello, async world!", (err) => {
+  if (err) throw err;
+});
+
 // 1. Callback style
 fs.readFile(filePath, "utf-8", (err, data) => {
   if (err) throw err;
