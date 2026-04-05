@@ -1,5 +1,4 @@
 const fs = require("fs");
-const fsPromises = require("fs/promises");
 const path = require("path");
 
 // Write a sample file for demonstration
@@ -25,7 +24,7 @@ fs.readFile(filePath, "utf-8", (err, data) => {
 
 // 2. Promise style
 const readSampleFile = () => {
-  fsPromises
+  fs.promises
     .readFile(filePath, "utf-8")
     .then((data) => console.log("Promise read:", data))
     .catch((err) => console.log("An error occurred.", err));
@@ -36,7 +35,7 @@ readSampleFile();
 // 3. Async/Await style
 const readFileAsyncAwait = async () => {
   try {
-    const data = await fsPromises.readFile(filePath, "utf-8");
+    const data = await fs.promises.readFile(filePath, "utf-8");
     console.log("Async/Await read:", data);
   } catch (err) {
     console.log("An error occurred:", err);
