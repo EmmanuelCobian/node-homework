@@ -2,7 +2,7 @@
 
 ## What is Node.js?
 
-Node is an application that runs JavaScript as a ruintime environment on your local machine. Node has no sandbox and operates in the same vein as any other programming language.
+Node is an application that runs JavaScript as a runtime environment on your local machine. Node has no sandbox and operates in the same vein as any other programming language.
 
 ## How does Node.js differ from running JavaScript in the browser?
 
