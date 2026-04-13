@@ -3,8 +3,19 @@ const errorHandler = require("./middleware/error-handler");
 const notFoundHandler = require("./middleware/not-found");
 const app = express();
 
+app.use((req, res, next) => {
+  console.log("Request Method:", req.method);
+  console.log("Request Path:", req.path);
+  console.log("Request Query:", req.query);
+  next();
+});
+
 app.get("/", (req, res) => {
   res.send("Hello, World!");
+});
+
+app.post("/testpost", (req, res) => {
+  res.send("Test POST received");
 });
 
 app.use(notFoundHandler);
