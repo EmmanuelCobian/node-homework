@@ -19,6 +19,15 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  next();
+});
+
+app.use(express.json({ limit: "1mb" }));
+
+app.use((req, res, next) => {
   if (req.method === "POST") {
     const contentType = req.get("content-type") || "";
     if (!contentType.includes("application/json")) {
@@ -33,31 +42,31 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "1mb" }));
-
 app.use("/images", express.static(path.join(__dirname, "public/images")));
 
 app.use("/", dogsRouter); // Do not remove this line
 
+app.use((err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+
+  if (statusCode >= 400 && statusCode < 500) {
+    console.warn(`WARN: ${err.name}: ${err.message}`);
+  } else {
+    console.error(`ERROR: Error, ${err.message}`);
+  }
+
+  res.status(statusCode).json({
+    error: err.message || "Internal Server Error",
+    requestId: req.requestId,
+  });
+});
+
 app.use((req, res, next) => {
   if (!res.headersSent) {
-    return res
+    res
       .status(404)
       .json({ error: "Route not found", requestId: req.requestId });
   }
-});
-
-app.use((err, req, res, next) => {
-  console.error(
-    "Internal server error: ",
-    err.constructor.name,
-    JSON.stringify(err, ["name", "message"]),
-  );
-
-  res.status(500).json({
-    error: "Internal Server Error",
-    requestId: req.requestId,
-  });
 });
 
 const server = app.listen(3000, () =>
