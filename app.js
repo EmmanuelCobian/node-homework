@@ -1,7 +1,14 @@
 const express = require("express");
 const errorHandler = require("./middleware/error-handler");
 const notFoundHandler = require("./middleware/not-found");
+const userRouter = require("./routes/userRoutes");
 const app = express();
+
+global.user_id = null;
+global.users = [];
+global.tasks = [];
+
+app.use(express.json({ limit: "1kb" }));
 
 app.use((req, res, next) => {
   console.log("Request Method:", req.method);
@@ -10,12 +17,14 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use("/api/users", userRouter);
+
 app.get("/", (req, res) => {
-  res.send("Hello, World!");
+  res.json({ message: "Hello, World!" });
 });
 
 app.post("/testpost", (req, res) => {
-  res.send("Test POST received");
+  res.json({ message: "Test POST received" });
 });
 
 app.use(notFoundHandler);
