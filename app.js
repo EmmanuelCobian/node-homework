@@ -1,7 +1,9 @@
 const express = require("express");
 const errorHandler = require("./middleware/error-handler");
 const notFoundHandler = require("./middleware/not-found");
+const authMiddleware = require("./middleware/auth");
 const userRouter = require("./routes/userRoutes");
+const taskRouter = require("./routes/taskRoutes");
 const app = express();
 
 global.user_id = null;
@@ -18,6 +20,8 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/users", userRouter);
+
+app.use("/api/tasks", authMiddleware, taskRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "Hello, World!" });
