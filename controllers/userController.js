@@ -27,16 +27,17 @@ const register = async (req, res) => {
   if (error)
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
+  const { password, ...user } = value;
   const newUser = {
-    name: value.name,
-    email: value.email,
-    password: await hashPassword(value.password),
+    ...user,
+    password: await hashPassword(password),
   };
 
   global.users.push(newUser);
   global.user_id = newUser;
-  delete req.body.password;
-  res.status(StatusCodes.CREATED).json(req.body);
+
+  const { password: __, ...outputUser } = newUser;
+  res.status(StatusCodes.CREATED).json(outputUser);
 };
 
 const logon = async (req, res) => {
