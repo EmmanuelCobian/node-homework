@@ -1,4 +1,5 @@
 const { StatusCodes } = require("http-status-codes");
+const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
 
 const taskCounter = (() => {
   let lastTaskNumber = 0;
@@ -33,8 +34,18 @@ const validateTaskId = (req, res) => {
 };
 
 const create = (req, res) => {
+  if (!req.body) req.body = {};
+
+  const { error, value } = taskSchema.validate(
+    { ...req.body },
+    { abortEarly: false },
+  );
+
+  if (error)
+    return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
+
   const newTask = {
-    ...req.body,
+    ...value,
     id: taskCounter(),
     userId: global.user_id.email,
   };
@@ -65,12 +76,22 @@ const show = (req, res) => {
 };
 
 const update = (req, res) => {
+  if (!req.body) req.body = {};
+
+  const { error, value } = patchTaskSchema.validate(
+    { ...req.body },
+    { abortEarly: false },
+  );
+
+  if (error)
+    req.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
+
   const taskIndex = validateTaskId(req, res);
   if (taskIndex === null) return;
 
   global.tasks[taskIndex] = {
     ...global.tasks[taskIndex],
-    ...req.body,
+    ...value,
   };
 
   const { userId, ...task } = global.tasks[taskIndex];
