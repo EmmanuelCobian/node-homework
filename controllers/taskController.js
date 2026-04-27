@@ -59,6 +59,12 @@ const index = (req, res) => {
     (task) => task.userId === global.user_id.email,
   );
 
+  if (userTasks.length === 0) {
+    return res
+      .status(StatusCodes.NOT_FOUND)
+      .json({ message: "User has no tasks" });
+  }
+
   const sanitizedTasks = userTasks.map((task) => {
     const { userId, ...sanitizedTask } = task;
     return sanitizedTask;
