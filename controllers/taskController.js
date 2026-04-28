@@ -90,7 +90,7 @@ const update = (req, res) => {
   );
 
   if (error)
-    req.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
+    return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
   const taskIndex = validateTaskId(req, res);
   if (taskIndex === null) return;
