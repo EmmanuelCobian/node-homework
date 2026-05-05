@@ -1,6 +1,11 @@
 const { StatusCodes } = require("http-status-codes");
 
 const errorHandlerMiddleware = (err, req, res, next) => {
+  if (err.code === "ECONREFUSED" && err.port === 5432) {
+    console.log(
+      "The databse connection was refused. Is your databse service running?",
+    );
+  }
   console.error(
     "Internal server error: ",
     err.constructor.name,
