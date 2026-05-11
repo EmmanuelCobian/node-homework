@@ -2,17 +2,17 @@ const { StatusCodes } = require("http-status-codes");
 const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
 const prisma = require("../db/prisma");
 
-const validateTaskId = (req, res) => {
-  const taskToFind = parseInt(req.params?.id);
+const parseTaskId = (req, res) => {
+  const taskId = Number(req.params?.id);
 
-  if (!taskToFind) {
+  if (Number.isNaN(taskId)) {
     res
       .status(StatusCodes.BAD_REQUEST)
       .json({ message: "The task ID passed is not valid." });
     return null;
   }
 
-  return taskToFind;
+  return taskId;
 };
 
 const create = async (req, res) => {
@@ -52,7 +52,7 @@ const index = async (req, res) => {
 };
 
 const show = async (req, res) => {
-  const taskId = validateTaskId(req, res);
+  const taskId = parseTaskId(req, res);
   if (taskId === null) return;
 
   const task = await prisma.task.findUnique({
@@ -82,7 +82,7 @@ const update = async (req, res, next) => {
   if (error)
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
-  const taskId = validateTaskId(req, res);
+  const taskId = parseTaskId(req, res);
   if (taskId === null) return;
 
   try {
@@ -105,7 +105,7 @@ const update = async (req, res, next) => {
 };
 
 const deleteTask = async (req, res, next) => {
-  const taskId = validateTaskId(req, res);
+  const taskId = parseTaskId(req, res);
   if (taskId === null) return;
 
   try {
