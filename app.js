@@ -1,14 +1,14 @@
 const express = require("express");
+const pool = require("./db/pg-pool");
 const errorHandler = require("./middleware/error-handler");
 const notFoundHandler = require("./middleware/not-found");
 const authMiddleware = require("./middleware/auth");
 const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
+const { StatusCodes } = require("http-status-codes");
 const app = express();
 
 global.user_id = null;
-global.users = [];
-global.tasks = [];
 
 app.use(express.json({ limit: "1kb" }));
 
@@ -29,6 +29,17 @@ app.get("/", (req, res) => {
 
 app.post("/testpost", (req, res) => {
   res.json({ message: "Test POST received" });
+});
+
+app.get("/health", async (req, res) => {
+  try {
+    await pool.query("SELECT 1");
+    res.json({ status: "ok", db: "connected" });
+  } catch (err) {
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: `db not connected, error: ${err.message}` });
+  }
 });
 
 app.use(notFoundHandler);
@@ -54,6 +65,7 @@ async function shutdown(code = 0) {
   isShuttingDown = true;
   console.log("Shutting down gracefully...");
   try {
+    await pool.end();
     await new Promise((resolve) => server.close(resolve));
     console.log("HTTP server closed.");
   } catch (err) {

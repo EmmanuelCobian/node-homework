@@ -1,13 +1,6 @@
 const { StatusCodes } = require("http-status-codes");
 const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
-
-const taskCounter = (() => {
-  let lastTaskNumber = 0;
-  return () => {
-    lastTaskNumber += 1;
-    return lastTaskNumber;
-  };
-})();
+const pool = require("../db/pg-pool");
 
 const validateTaskId = (req, res) => {
   const taskToFind = parseInt(req.params?.id);
@@ -19,98 +12,115 @@ const validateTaskId = (req, res) => {
     return null;
   }
 
-  const taskIndex = global.tasks.findIndex(
-    (task) => task.id === taskToFind && task.userId === global.user_id.email,
-  );
-
-  if (taskIndex === -1) {
-    res
-      .status(StatusCodes.NOT_FOUND)
-      .json({ message: "That task was not found" });
-    return null;
-  }
-
-  return taskIndex;
+  return taskToFind;
 };
 
-const create = (req, res) => {
+const create = async (req, res) => {
   if (!req.body) req.body = {};
 
-  const { error, value } = taskSchema.validate(
-    { ...req.body },
-    { abortEarly: false },
-  );
+  const { error, value } = taskSchema.validate(req.body, { abortEarly: false });
 
   if (error)
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
-  const newTask = {
-    ...value,
-    id: taskCounter(),
-    userId: global.user_id.email,
-  };
-  global.tasks.push(newTask);
-  const { userId, ...sanitizedTask } = newTask;
-  res.status(StatusCodes.CREATED).json(sanitizedTask);
+  const result = await pool.query(
+    `INSERT INTO tasks (title, is_completed, user_id)
+    VALUES ( $1, $2, $3 )
+    RETURNING id, title, is_completed`,
+    [value.title, value.isCompleted, global.user_id],
+  );
+  const task = result.rows[0];
+
+  return res.status(StatusCodes.CREATED).json(task);
 };
 
-const index = (req, res) => {
-  const userTasks = global.tasks.filter(
-    (task) => task.userId === global.user_id.email,
+const index = async (req, res) => {
+  const tasks = await pool.query(
+    `SELECT id, title, is_completed FROM tasks
+    WHERE user_id = $1`,
+    [global.user_id],
   );
 
-  if (userTasks.length === 0) {
+  if (tasks.rows.length === 0) {
     return res
       .status(StatusCodes.NOT_FOUND)
       .json({ message: "User has no tasks" });
   }
 
-  const sanitizedTasks = userTasks.map((task) => {
-    const { userId, ...sanitizedTask } = task;
-    return sanitizedTask;
-  });
-
-  res.json(sanitizedTasks);
+  res.json(tasks.rows);
 };
 
-const show = (req, res) => {
-  const taskIndex = validateTaskId(req, res);
-  if (taskIndex === null) return;
+const show = async (req, res) => {
+  const taskId = validateTaskId(req, res);
+  if (taskId === null) return;
 
-  const { userId, ...task } = global.tasks[taskIndex];
-  res.json(task);
+  const task = await pool.query(
+    `SELECT id, title, is_completed FROM tasks
+    WHERE id = $1 AND user_id = $2`,
+    [taskId, global.user_id],
+  );
+
+  if (task.rows.length === 0) {
+    return res
+      .status(StatusCodes.NOT_FOUND)
+      .json({ message: "That task was not found" });
+  }
+
+  res.json(task.rows[0]);
 };
 
-const update = (req, res) => {
+const update = async (req, res) => {
   if (!req.body) req.body = {};
 
-  const { error, value } = patchTaskSchema.validate(
-    { ...req.body },
-    { abortEarly: false },
-  );
+  const { error, value } = patchTaskSchema.validate(req.body, {
+    abortEarly: false,
+  });
 
   if (error)
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
-  const taskIndex = validateTaskId(req, res);
-  if (taskIndex === null) return;
+  const taskId = validateTaskId(req, res);
+  if (taskId === null) return;
 
-  global.tasks[taskIndex] = {
-    ...global.tasks[taskIndex],
-    ...value,
-  };
+  let keys = Object.keys(value);
+  keys = keys.map((key) => (key === "isCompleted" ? "is_completed" : key));
+  const setClauses = keys.map((key, i) => `${key} = $${i + 1}`).join(", ");
+  const idParm = `$${keys.length + 1}`;
+  const userParm = `$${keys.length + 2}`;
+  const updatedTask = await pool.query(
+    `UPDATE tasks SET ${setClauses}
+    WHERE id = ${idParm} AND user_id = ${userParm}
+    RETURNING id, title, is_completed`,
+    [...Object.values(value), req.params.id, global.user_id],
+  );
 
-  const { userId, ...task } = global.tasks[taskIndex];
-  res.json(task);
+  if (updatedTask.rows.length === 0) {
+    return res
+      .status(StatusCodes.NOT_FOUND)
+      .json({ message: "That task was not found" });
+  }
+
+  res.json(updatedTask.rows[0]);
 };
 
-const deleteTask = (req, res) => {
-  const taskIndex = validateTaskId(req, res);
-  if (taskIndex === null) return;
+const deleteTask = async (req, res) => {
+  const taskId = validateTaskId(req, res);
+  if (taskId === null) return;
 
-  const { userId, ...task } = global.tasks[taskIndex];
-  global.tasks.splice(taskIndex, 1);
-  res.json(task);
+  const task = await pool.query(
+    `DELETE FROM tasks
+    WHERE id = $1 AND user_id = $2
+    RETURNING id, title, is_completed`,
+    [taskId, global.user_id],
+  );
+
+  if (task.rows.length === 0) {
+    return res
+      .status(StatusCodes.NOT_FOUND)
+      .json({ message: "That task was not found" });
+  }
+
+  res.json(task.rows[0]);
 };
 
 module.exports = { index, create, show, update, deleteTask };
