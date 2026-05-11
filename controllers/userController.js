@@ -59,7 +59,7 @@ const logon = async (req, res) => {
       .json({ message: "Authentication Failed" });
   }
 
-  const isMatch = await comparePassword(password, user.hashed_password);
+  const isMatch = await comparePassword(password, user.hashedPassword);
   if (isMatch) {
     global.user_id = user.id;
     res.status(StatusCodes.OK).json({ name: user.name, email: user.email });
