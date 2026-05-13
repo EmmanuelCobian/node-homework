@@ -33,7 +33,7 @@ app.post("/testpost", (req, res) => {
 
 app.get("/health", async (req, res) => {
   try {
-    await prisma.$queryRow`SELECT 1`;
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: "ok", db: "connected" });
   } catch (err) {
     res
