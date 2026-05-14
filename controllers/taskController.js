@@ -39,8 +39,17 @@ const index = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
+  const whereClause = { userId: global.user_id };
+
+  if (req.query.find) {
+    whereClause.title = {
+      contains: req.query.find,
+      mode: "insensitive",
+    };
+  }
+
   const tasks = await prisma.task.findMany({
-    where: { userId: global.user_id },
+    where: whereClause,
     select: {
       id: true,
       title: true,
@@ -60,7 +69,7 @@ const index = async (req, res) => {
   });
 
   const totalTasks = await prisma.task.count({
-    where: { userId: global.user_id },
+    where: whereClause,
   });
   const totalPages = Math.ceil(totalTasks / limit);
 
