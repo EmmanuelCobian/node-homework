@@ -28,7 +28,7 @@ const create = async (req, res) => {
       ...value,
       userId: global.user_id,
     },
-    select: { id: true, title: true, isCompleted: true },
+    select: { id: true, title: true, isCompleted: true, priority: true },
   });
 
   return res.status(StatusCodes.CREATED).json(task);
