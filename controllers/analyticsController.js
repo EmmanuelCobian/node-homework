@@ -108,6 +108,50 @@ const getUsersWithStats = async (req, res) => {
   return res.status(200).json({ users, pagination });
 };
 
-const searchTasks = async (req, res, next) => {};
+const searchTasks = async (req, res) => {
+  const searchQuery = req.query.q;
+
+  if (!searchQuery || searchQuery.trim().length < 2) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      error: "Search query must be at least 2 characters long",
+    });
+  }
+
+  const limit = Number(req.query.limit) || 20;
+
+  const searchPattern = `%${searchQuery}%`;
+  const exactMatch = searchQuery;
+  const startsWith = `${searchQuery}%`;
+
+  const searchResults = await prisma.$queryRaw`
+  SELECT 
+    t.id,
+    t.title,
+    t.is_completed as "isCompleted",
+    t.priority,
+    t.created_at as "createdAt",
+    t.user_id as "userId",
+    u.name as "user_name"
+  FROM tasks t
+  JOIN users u ON t.user_id = u.id
+  WHERE t.title ILIKE ${searchPattern} 
+     OR u.name ILIKE ${searchPattern}
+  ORDER BY 
+    CASE 
+      WHEN t.title ILIKE ${exactMatch} THEN 1
+      WHEN t.title ILIKE ${startsWith} THEN 2
+      WHEN t.title ILIKE ${searchPattern} THEN 3
+      ELSE 4
+    END,
+    t.created_at DESC
+  LIMIT ${parseInt(limit)}
+`;
+
+  res.json({
+    searchResults,
+    searchQuery,
+    limit,
+  });
+};
 
 module.exports = { getUserAnalytics, getUsersWithStats, searchTasks };
