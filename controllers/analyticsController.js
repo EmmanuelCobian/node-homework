@@ -63,7 +63,7 @@ const getUserAnalytics = async (req, res) => {
 
 const getUsersWithStats = async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Number(req.query.limit) || 10;
+  const limit = Math.min(Math.max(Number(req.query.limit), 1), 100) || 10;
   const skip = (page - 1) * limit;
 
   const usersRaw = await prisma.user.findMany({
@@ -117,7 +117,7 @@ const searchTasks = async (req, res) => {
     });
   }
 
-  const limit = Number(req.query.limit) || 20;
+  const limit = Math.min(Math.max(Number(req.query.limit), 1), 100) || 20;
 
   const searchPattern = `%${searchQuery}%`;
   const exactMatch = searchQuery;
