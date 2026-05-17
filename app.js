@@ -1,5 +1,5 @@
 const express = require("express");
-const pool = require("./db/pg-pool");
+const prisma = require("./db/prisma");
 const errorHandler = require("./middleware/error-handler");
 const notFoundHandler = require("./middleware/not-found");
 const authMiddleware = require("./middleware/auth");
@@ -33,7 +33,7 @@ app.post("/testpost", (req, res) => {
 
 app.get("/health", async (req, res) => {
   try {
-    await pool.query("SELECT 1");
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: "ok", db: "connected" });
   } catch (err) {
     res
@@ -65,7 +65,8 @@ async function shutdown(code = 0) {
   isShuttingDown = true;
   console.log("Shutting down gracefully...");
   try {
-    await pool.end();
+    await prisma.$disconnect();
+    console.log("Prisma disconnected");
     await new Promise((resolve) => server.close(resolve));
     console.log("HTTP server closed.");
   } catch (err) {

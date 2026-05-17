@@ -1,18 +1,18 @@
 const { StatusCodes } = require("http-status-codes");
 const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
-const pool = require("../db/pg-pool");
+const prisma = require("../db/prisma");
 
-const validateTaskId = (req, res) => {
-  const taskToFind = parseInt(req.params?.id);
+const parseTaskId = (req, res) => {
+  const taskId = Number(req.params?.id);
 
-  if (!taskToFind) {
+  if (Number.isNaN(taskId)) {
     res
       .status(StatusCodes.BAD_REQUEST)
       .json({ message: "The task ID passed is not valid." });
     return null;
   }
 
-  return taskToFind;
+  return taskId;
 };
 
 const create = async (req, res) => {
@@ -23,53 +23,56 @@ const create = async (req, res) => {
   if (error)
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
-  const result = await pool.query(
-    `INSERT INTO tasks (title, is_completed, user_id)
-    VALUES ( $1, $2, $3 )
-    RETURNING id, title, is_completed`,
-    [value.title, value.isCompleted, global.user_id],
-  );
-  const task = result.rows[0];
+  const task = await prisma.task.create({
+    data: {
+      ...value,
+      userId: global.user_id,
+    },
+    select: { id: true, title: true, isCompleted: true },
+  });
 
   return res.status(StatusCodes.CREATED).json(task);
 };
 
 const index = async (req, res) => {
-  const tasks = await pool.query(
-    `SELECT id, title, is_completed FROM tasks
-    WHERE user_id = $1`,
-    [global.user_id],
-  );
+  const tasks = await prisma.task.findMany({
+    where: {
+      userId: global.user_id,
+    },
+    select: { title: true, isCompleted: true, id: true },
+  });
 
-  if (tasks.rows.length === 0) {
+  if (tasks.length === 0) {
     return res
       .status(StatusCodes.NOT_FOUND)
       .json({ message: "User has no tasks" });
   }
 
-  res.json(tasks.rows);
+  res.json(tasks);
 };
 
 const show = async (req, res) => {
-  const taskId = validateTaskId(req, res);
+  const taskId = parseTaskId(req, res);
   if (taskId === null) return;
 
-  const task = await pool.query(
-    `SELECT id, title, is_completed FROM tasks
-    WHERE id = $1 AND user_id = $2`,
-    [taskId, global.user_id],
-  );
+  const task = await prisma.task.findUnique({
+    where: {
+      id: taskId,
+      userId: global.user_id,
+    },
+    select: { id: true, title: true, isCompleted: true },
+  });
 
-  if (task.rows.length === 0) {
+  if (!task) {
     return res
       .status(StatusCodes.NOT_FOUND)
       .json({ message: "That task was not found" });
   }
 
-  res.json(task.rows[0]);
+  res.json(task);
 };
 
-const update = async (req, res) => {
+const update = async (req, res, next) => {
   if (!req.body) req.body = {};
 
   const { error, value } = patchTaskSchema.validate(req.body, {
@@ -79,48 +82,48 @@ const update = async (req, res) => {
   if (error)
     return res.status(StatusCodes.BAD_REQUEST).json({ message: error.message });
 
-  const taskId = validateTaskId(req, res);
+  const taskId = parseTaskId(req, res);
   if (taskId === null) return;
 
-  let keys = Object.keys(value);
-  keys = keys.map((key) => (key === "isCompleted" ? "is_completed" : key));
-  const setClauses = keys.map((key, i) => `${key} = $${i + 1}`).join(", ");
-  const idParm = `$${keys.length + 1}`;
-  const userParm = `$${keys.length + 2}`;
-  const updatedTask = await pool.query(
-    `UPDATE tasks SET ${setClauses}
-    WHERE id = ${idParm} AND user_id = ${userParm}
-    RETURNING id, title, is_completed`,
-    [...Object.values(value), req.params.id, global.user_id],
-  );
-
-  if (updatedTask.rows.length === 0) {
-    return res
-      .status(StatusCodes.NOT_FOUND)
-      .json({ message: "That task was not found" });
+  try {
+    const task = await prisma.task.update({
+      data: value,
+      where: {
+        id: taskId,
+        userId: global.user_id,
+      },
+      select: { title: true, isCompleted: true, id: true },
+    });
+    return res.json(task);
+  } catch (err) {
+    if (err.code === "P2025") {
+      return res.status(404).json({ message: "The task was not found." });
+    } else {
+      return next(err);
+    }
   }
-
-  res.json(updatedTask.rows[0]);
 };
 
-const deleteTask = async (req, res) => {
-  const taskId = validateTaskId(req, res);
+const deleteTask = async (req, res, next) => {
+  const taskId = parseTaskId(req, res);
   if (taskId === null) return;
 
-  const task = await pool.query(
-    `DELETE FROM tasks
-    WHERE id = $1 AND user_id = $2
-    RETURNING id, title, is_completed`,
-    [taskId, global.user_id],
-  );
-
-  if (task.rows.length === 0) {
-    return res
-      .status(StatusCodes.NOT_FOUND)
-      .json({ message: "That task was not found" });
+  try {
+    const task = await prisma.task.delete({
+      where: {
+        id: taskId,
+        userId: global.user_id,
+      },
+      select: { title: true, isCompleted: true, id: true },
+    });
+    return res.json(task);
+  } catch (err) {
+    if (err.code === "P2025") {
+      return res.status(404).json({ message: "The task was not found." });
+    } else {
+      return next(err);
+    }
   }
-
-  res.json(task.rows[0]);
 };
 
 module.exports = { index, create, show, update, deleteTask };
