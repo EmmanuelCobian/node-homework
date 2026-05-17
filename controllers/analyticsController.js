@@ -148,9 +148,9 @@ const searchTasks = async (req, res) => {
 `;
 
   res.json({
-    searchResults,
-    searchQuery,
-    limit,
+    results: searchResults,
+    query: searchQuery,
+    count: limit,
   });
 };
 

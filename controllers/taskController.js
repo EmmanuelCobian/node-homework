@@ -94,7 +94,17 @@ const show = async (req, res) => {
       id: taskId,
       userId: global.user_id,
     },
-    select: { id: true, title: true, isCompleted: true },
+    select: {
+      id: true,
+      title: true,
+      isCompleted: true,
+      User: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
   });
 
   if (!task) {
@@ -126,7 +136,7 @@ const update = async (req, res, next) => {
         id: taskId,
         userId: global.user_id,
       },
-      select: { title: true, isCompleted: true, id: true },
+      select: { title: true, isCompleted: true, id: true, priority: true },
     });
     return res.json(task);
   } catch (err) {

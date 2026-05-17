@@ -81,8 +81,15 @@ const logon = async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase() },
-    select: { id: true, name: true, email: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      hashedPassword: true,
+    },
   });
+
   if (!user) {
     return res
       .status(StatusCodes.UNAUTHORIZED)
@@ -90,19 +97,19 @@ const logon = async (req, res) => {
   }
 
   const isMatch = await comparePassword(password, user.hashedPassword);
-  if (isMatch) {
-    global.user_id = user.id;
-    res.status(StatusCodes.OK).json({ name: user.name, email: user.email });
-  } else {
-    res
+  if (!isMatch) {
+    return res
       .status(StatusCodes.UNAUTHORIZED)
       .json({ message: "Authentication Failed" });
   }
+
+  global.user_id = user.id;
+  return res.json({ name: user.name, email: user.email });
 };
 
 const logoff = (req, res) => {
   global.user_id = null;
-  res.sendStatus(StatusCodes.OK);
+  return res.sendStatus(StatusCodes.OK);
 };
 
 module.exports = { register, logon, logoff };
