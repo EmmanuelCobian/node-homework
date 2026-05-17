@@ -80,7 +80,7 @@ const logon = async (req, res) => {
   const { email, password } = { ...req.body };
 
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: email.toLowerCase() },
     select: { id: true, name: true, email: true, createdAt: true },
   });
   if (!user) {
