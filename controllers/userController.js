@@ -31,14 +31,41 @@ const register = async (req, res, next) => {
   const hashedPassword = await hashPassword(value.password);
 
   try {
-    const { name, email } = value;
-    const user = await prisma.user.create({
-      data: { name, email, hashedPassword },
-      select: { name: true, email: true, id: true },
+    const result = await prisma.$transaction(async (tx) => {
+      const { name, email } = value;
+      const newUser = await tx.user.create({
+        data: { name, email, hashedPassword },
+        select: { name: true, email: true, id: true },
+      });
+
+      const welcomeTaskData = [
+        {
+          title: "Complete your profile",
+          userId: newUser.id,
+          priority: "medium",
+        },
+        { title: "Add your first task", userId: newUser.id, priority: "high" },
+        { title: "Explore the app", userId: newUser.id, priority: "low" },
+      ];
+      await tx.task.createMany({ data: welcomeTaskData });
+
+      const welcomeTasks = await tx.task.findMany({
+        where: {
+          userId: newUser.id,
+          title: { in: welcomeTaskData.map((t) => t.title) },
+        },
+      });
+
+      return { user: newUser, welcomeTasks };
     });
-    global.user_id = user.id;
-    const { id, ...responseUser } = user;
-    return res.status(StatusCodes.CREATED).json(responseUser);
+
+    global.user_id = result.user.id;
+
+    return res.status(StatusCodes.CREATED).json({
+      user: result.user,
+      welcomeTasks: result.welcomeTasks,
+      transactionStatus: "success",
+    });
   } catch (e) {
     if (e.name === "PrismaClientKnownRequestError" && e.code === "P2002") {
       return res.status(StatusCodes.BAD_REQUEST).json({
