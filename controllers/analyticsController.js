@@ -48,14 +48,28 @@ const getUserAnalytics = async (req, res) => {
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-  const weeklyProgress = await prisma.task.groupBy({
-    by: ["createdAt"],
+  const tasks = await prisma.task.findMany({
     where: {
-      userId: userId,
-      createdAt: { gte: oneWeekAgo },
+      userId,
+      createdAt: {
+        gte: oneWeekAgo,
+      },
     },
-    _count: { id: true },
+    select: {
+      createdAt: true,
+    },
   });
+
+  const weeklyProgressMap = {};
+
+  for (const task of tasks) {
+    const date = task.createdAt.toISOString().split("T")[0];
+    weeklyProgressMap[date] = (weeklyProgressMap[date] || 0) + 1;
+  }
+
+  const weeklyProgress = Object.entries(weeklyProgressMap).map(
+    ([date, count]) => ({ date, count }),
+  );
 
   res.status(200).json({ taskStats, recentTasks, weeklyProgress });
   return;
