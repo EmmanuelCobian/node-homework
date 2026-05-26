@@ -5,6 +5,7 @@ const notFoundHandler = require("./middleware/not-found");
 const authMiddleware = require("./middleware/auth");
 const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 const { StatusCodes } = require("http-status-codes");
 const app = express();
 
@@ -18,6 +19,8 @@ app.use((req, res, next) => {
   console.log("Request Query:", req.query);
   next();
 });
+
+app.use("/api/analytics", authMiddleware, analyticsRoutes);
 
 app.use("/api/users", userRouter);
 
