@@ -7,11 +7,28 @@ const taskRouter = require("./routes/taskRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const { StatusCodes } = require("http-status-codes");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const { xss } = require("express-xss-sanitizer");
+const rateLimiter = require("express-rate-limit");
+
 const app = express();
+
+app.set("trust proxy", 1);
+
+app.use(
+  rateLimiter({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  }),
+);
+
+app.use(helmet());
 
 app.use(cookieParser());
 
 app.use(express.json({ limit: "1kb" }));
+
+app.use(xss());
 
 app.use((req, res, next) => {
   console.log("Request Method:", req.method);
