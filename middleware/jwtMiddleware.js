@@ -18,7 +18,7 @@ const jwtMiddleware = async (req, res, next) => {
       return send401(res);
     }
 
-    res.user = { id: decoded.id };
+    req.user = { id: decoded.id };
     if (["POST", "PATCH", "PUT", "DELETE", "CONNECT"].includes(req.method)) {
       if (req.get("X-CSRF-TOKEN") != decoded.csrfToken) {
         return send401(res);
