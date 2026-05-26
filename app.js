@@ -6,9 +6,10 @@ const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const { StatusCodes } = require("http-status-codes");
+const cookieParser = require("cookie-parser");
 const app = express();
 
-global.user_id = null;
+app.use(cookieParser());
 
 app.use(express.json({ limit: "1kb" }));
 
