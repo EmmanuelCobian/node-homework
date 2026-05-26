@@ -2,7 +2,6 @@ const express = require("express");
 const prisma = require("./db/prisma");
 const errorHandler = require("./middleware/error-handler");
 const notFoundHandler = require("./middleware/not-found");
-const authMiddleware = require("./middleware/auth");
 const userRouter = require("./routes/userRoutes");
 const taskRouter = require("./routes/taskRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
@@ -20,11 +19,11 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/api/analytics", authMiddleware, analyticsRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 app.use("/api/users", userRouter);
 
-app.use("/api/tasks", authMiddleware, taskRouter);
+app.use("/api/tasks", taskRouter);
 
 app.get("/", (req, res) => {
   res.json({ message: "Hello, World!" });
