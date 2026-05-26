@@ -1,9 +1,26 @@
 const { StatusCodes } = require("http-status-codes");
 const { userSchema } = require("../validation/userSchema");
 const crypto = require("crypto");
+const { randomUUID } = require("crypto");
+const jwt = require("jsonwebtoken");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 const prisma = require("../db/prisma");
+
+const cookieFlags = (req) => {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+  };
+};
+
+const setJwtCookie = (req, res, user) => {
+  const payload = { id: user.id, csrfToken: randomUUID() };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
+  res.cookie("jwt", token, { ...cookieFlags(req), maxAge: 3600000 });
+  return payload.csrfToken;
+};
 
 async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -59,10 +76,11 @@ const register = async (req, res, next) => {
       return { user: newUser, welcomeTasks };
     });
 
-    global.user_id = result.user.id;
+    const csrfToken = setJwtCookie(req, res, result.user);
 
     return res.status(StatusCodes.CREATED).json({
       user: result.user,
+      csrfToken: csrfToken,
       welcomeTasks: result.welcomeTasks,
       transactionStatus: "success",
     });
@@ -103,12 +121,12 @@ const logon = async (req, res) => {
       .json({ message: "Authentication Failed" });
   }
 
-  global.user_id = user.id;
-  return res.json({ name: user.name, email: user.email });
+  const csrfToken = setJwtCookie(req, res, user);
+  return res.json({ name: user.name, email: user.email, csrfToken: csrfToken });
 };
 
 const logoff = (req, res) => {
-  global.user_id = null;
+  res.clearCookie("jwt", cookieFlags(req));
   return res.sendStatus(StatusCodes.OK);
 };
 
