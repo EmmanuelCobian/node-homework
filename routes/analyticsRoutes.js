@@ -1,4 +1,5 @@
 const express = require("express");
+const jwtMiddleware = require("../middleware/jwtMiddleware")
 
 const router = express.Router();
 const {
@@ -7,6 +8,7 @@ const {
   searchTasks,
 } = require("../controllers/analyticsController");
 
+router.use(jwtMiddleware)
 router.route("/users").get(getUsersWithStats);
 router.route("/users/:id").get(getUserAnalytics);
 router.route("/tasks/search").get(searchTasks);
