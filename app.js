@@ -8,6 +8,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const { StatusCodes } = require("http-status-codes");
 const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
+const cors = require("cors");
 const { xss } = require("express-xss-sanitizer");
 const rateLimiter = require("express-rate-limit");
 
@@ -23,6 +24,14 @@ app.use(
 );
 
 app.use(helmet());
+
+app.use(
+  cors({
+    origin: "http://localhost:3001",
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
 
 app.use(cookieParser());
 
