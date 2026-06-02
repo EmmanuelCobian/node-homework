@@ -156,8 +156,8 @@ describe("test getting created tasks", () => {
     const req = httpMocks.createRequest({
       method: "GET",
       params: { id: saveTaskId.toString() },
+      user: { id: user2.id },
     });
-    req.user = { id: user2.id };
 
     const res = httpMocks.createResponse({ eventEmitter: EventEmitter });
     await waitForRouteHandlerCompletion(show, req, res);
@@ -171,8 +171,8 @@ describe("test updating and deleting tasks", () => {
       method: "PATCH",
       params: { id: saveTaskId.toString() },
       body: { isCompleted: true },
+      user: { id: user1.id },
     });
-    req.user = { id: user1.id };
 
     const res = httpMocks.createResponse({ eventEmitter: EventEmitter });
     await waitForRouteHandlerCompletion(update, req, res);
@@ -192,9 +192,39 @@ describe("test updating and deleting tasks", () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it("30. user2 can't delete this task", async () => {});
+  it("30. user2 can't delete this task", async () => {
+    const req = httpMocks.createRequest({
+      method: "DELETE",
+      params: { id: saveTaskId.toString() },
+      user: { id: user2.id },
+    });
 
-  it("31. user1 can delete this task", async () => {});
+    const res = httpMocks.createResponse({ eventEmitter: EventEmitter });
+    await waitForRouteHandlerCompletion(deleteTask, req, res);
+    expect(res.statusCode).toBe(404);
+  });
 
-  it("32. retrieving user1's tasks now returns a 404", async () => {});
+  it("31. user1 can delete this task", async () => {
+    const req = httpMocks.createRequest({
+      method: "DELETE",
+      params: { id: saveTaskId.toString() },
+      user: { id: user1.id },
+    });
+
+    const res = httpMocks.createResponse({ eventEmitter: EventEmitter });
+    await waitForRouteHandlerCompletion(deleteTask, req, res);
+    expect(res.statusCode).toBe(200);
+  });
+
+  it("32. retrieving user1's tasks now returns a 404", async () => {
+    const req = httpMocks.createRequest({
+      method: "GET",
+      params: { id: saveTaskId.toString() },
+      user: { id: user1.id },
+    });
+
+    const res = httpMocks.createResponse({ eventEmitter: EventEmitter });
+    await waitForRouteHandlerCompletion(show, req, res);
+    expect(res.statusCode).toBe(404);
+  });
 });
