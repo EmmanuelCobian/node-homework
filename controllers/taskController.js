@@ -35,6 +35,16 @@ const create = async (req, res) => {
 };
 
 const index = async (req, res) => {
+  if (!req.user?.id) {
+    return res
+      .status(StatusCodes.BAD_REQUEST)
+      .json({ message: "user id must be included" });
+  }
+
+  if (req.query.userId && Number(req.query.userId) !== req.user.id) {
+    return res.status(StatusCodes.NOT_FOUND).json({ message: "Not found" });
+  }
+
   const page = Math.max(parseInt(req.query.page), 1) || 1;
   const limit = Math.min(Math.max(parseInt(req.query.limit), 1), 100) || 10;
   const skip = (page - 1) * limit;
