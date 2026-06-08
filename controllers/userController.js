@@ -36,13 +36,12 @@ async function comparePassword(inputPassword, storedHash) {
 }
 
 const register = async (req, res, next) => {
-  if (!req.body) req.body = {};
   let isPerson = false;
   if (req.body.recaptchaToken) {
     const token = req.body.recaptchaToken;
     const params = new URLSearchParams();
     params.append("secret", process.env.RECAPTCHA_SECRET);
-    params.append("reponse", token);
+    params.append("response", token);
     params.append("remoteip", req.ip);
     const response = await fetch(
       "https://www.google.com/recaptcha/api/siteverify",
@@ -63,13 +62,10 @@ const register = async (req, res, next) => {
   ) {
     isPerson = true;
   }
-
   if (!isPerson) {
-    return res
-      .status(StatusCodes.BAD_REQUEST)
-      .json({
-        message: "Bot verification failed. Please complete the reCAPTCHA",
-      });
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      message: "Bot verification failed. Please complete the reCAPTCHA.",
+    });
   }
 
   const { error, value } = userSchema.validate(req.body, { abortEarly: false });
