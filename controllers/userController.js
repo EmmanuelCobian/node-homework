@@ -163,9 +163,9 @@ const logoff = (req, res) => {
 };
 
 const googleLogon = async (req, res, next) => {
-  const { authorizationCode } = req.body;
+  const { code } = req.body;
 
-  if (!authorizationCode) {
+  if (!code) {
     return res.status(StatusCodes.BAD_REQUEST).json({
       message: "Missing authorization code",
     });
@@ -178,7 +178,7 @@ const googleLogon = async (req, res, next) => {
       "localhost:3001",
     );
 
-    const { tokens } = await oauth2Client.getToken(authorizationCode);
+    const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
     const ticket = await oauth2Client.verifyIdToken({
