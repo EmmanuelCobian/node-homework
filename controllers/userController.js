@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 const prisma = require("../db/prisma");
+const { OAuth2Client } = require("google-auth-library");
 
 const cookieFlags = (req) => {
   return {
@@ -161,4 +162,62 @@ const logoff = (req, res) => {
   return res.sendStatus(StatusCodes.OK);
 };
 
-module.exports = { register, logon, logoff };
+const googleLogon = async (req, res, next) => {
+  const { authorizationCode } = req.body;
+
+  if (!authorizationCode) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      message: "Missing authorization code",
+    });
+  }
+
+  try {
+    const oauth2Client = new OAuth2Client(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      "localhost:3001",
+    );
+
+    const { tokens } = await oauth2Client.getToken(authorizationCode);
+    oauth2Client.setCredentials(tokens);
+
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { name, email } = payload;
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      select: { id: true, name: true, email: true },
+    });
+
+    if (user) {
+      const csrfToken = setJwtCookie(req, res, user);
+      return res.json({ name: user.name, email: user.email, csrfToken });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name,
+        hashedPassword: "OAUTH_USER_NO_PASSWORD",
+      },
+      select: { id: true, name: true, email: true },
+    });
+
+    const csrfToken = setJwtCookie(req, res, newUser);
+    return res.json({ name: newUser.name, email: newUser.email, csrfToken });
+  } catch (error) {
+    if (error.message.includes("Invalid authorization code")) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ message: "Authentication Failed" });
+    }
+    return next(error);
+  }
+};
+
+module.exports = { register, logon, logoff, googleLogon };
