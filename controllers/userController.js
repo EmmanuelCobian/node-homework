@@ -172,10 +172,11 @@ const googleLogon = async (req, res, next) => {
   }
 
   try {
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3001";
     const oauth2Client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      "localhost:3001",
+      redirectUri,
     );
 
     const { tokens } = await oauth2Client.getToken(code);
