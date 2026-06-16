@@ -201,35 +201,42 @@ const googleLogon = async (req, res, next) => {
       return res.json({ name: user.name, email: user.email, csrfToken });
     }
 
-    const newUser = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        name,
-        hashedPassword: "OAUTH_USER_NO_PASSWORD",
-      },
-      select: { id: true, name: true, email: true },
+    const result = await prisma.$transaction(async (tx) => {
+      const { name, email } = value;
+      const newUser = await tx.user.create({
+        data: { name, email, hashedPassword },
+        select: { name: true, email: true, id: true },
+      });
+
+      const welcomeTaskData = [
+        {
+          title: "Complete your profile",
+          userId: newUser.id,
+          priority: "medium",
+        },
+        { title: "Add your first task", userId: newUser.id, priority: "high" },
+        { title: "Explore the app", userId: newUser.id, priority: "low" },
+      ];
+      await tx.task.createMany({ data: welcomeTaskData });
+
+      const welcomeTasks = await tx.task.findMany({
+        where: {
+          userId: newUser.id,
+          title: { in: welcomeTaskData.map((t) => t.title) },
+        },
+      });
+
+      return { user: newUser, welcomeTasks };
     });
 
-    const welcomeTaskData = [
-      {
-        title: "Complete your profile",
-        userId: newUser.id,
-        priority: "medium",
-      },
-      { title: "Add your first task", userId: newUser.id, priority: "high" },
-      { title: "Explore the app", userId: newUser.id, priority: "low" },
-    ];
-    await tx.task.createMany({ data: welcomeTaskData });
+    const csrfToken = setJwtCookie(req, res, result.user);
 
-    const welcomeTasks = await tx.task.findMany({
-      where: {
-        userId: newUser.id,
-        title: { in: welcomeTaskData.map((t) => t.title) },
-      },
+    return res.status(StatusCodes.CREATED).json({
+      user: result.user,
+      csrfToken: csrfToken,
+      welcomeTasks: result.welcomeTasks,
+      transactionStatus: "success",
     });
-
-    const csrfToken = setJwtCookie(req, res, newUser);
-    return res.json({ name: newUser.name, email: newUser.email, csrfToken });
   } catch (error) {
     if (error.message.includes("Invalid authorization code")) {
       return res
