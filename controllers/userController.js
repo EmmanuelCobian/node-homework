@@ -202,10 +202,13 @@ const googleLogon = async (req, res, next) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const { name, email } = value;
       const newUser = await tx.user.create({
-        data: { name, email, hashedPassword },
-        select: { name: true, email: true, id: true },
+        data: {
+          email: email.toLowerCase(),
+          name,
+          hashedPassword: "OAUTH_USER_NO_PASSWORD",
+        },
+        select: { id: true, name: true, email: true },
       });
 
       const welcomeTaskData = [
