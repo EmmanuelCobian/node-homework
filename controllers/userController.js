@@ -36,6 +36,100 @@ async function comparePassword(inputPassword, storedHash) {
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
 
+async function createWelcomeTasks(tx, userId) {
+  const welcomeTaskData = [
+    {
+      title: "Complete your profile",
+      userId,
+      priority: "medium",
+    },
+    {
+      title: "Add your first task",
+      userId,
+      priority: "high",
+    },
+    {
+      title: "Explore the app",
+      userId,
+      priority: "low",
+    },
+  ];
+
+  await tx.task.createMany({
+    data: welcomeTaskData,
+  });
+
+  return tx.task.findMany({
+    where: {
+      userId,
+      title: {
+        in: welcomeTaskData.map((t) => t.title),
+      },
+    },
+  });
+}
+
+async function createUserWithOnboarding(userData) {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: userData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    const welcomeTasks = await createWelcomeTasks(tx, user.id);
+
+    return {
+      user,
+      welcomeTasks,
+    };
+  });
+}
+
+function createSession(req, res, user) {
+  const csrfToken = setJwtCookie(req, res, user);
+
+  return {
+    name: user.name,
+    email: user.email,
+    csrfToken,
+  };
+}
+
+async function findOrCreateGoogleUser({ email, name }) {
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      email: email.toLowerCase(),
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  });
+
+  if (existingUser) {
+    return {
+      user: existingUser,
+      isNewUser: false,
+    };
+  }
+
+  const result = await createUserWithOnboarding({
+    email: email.toLowerCase(),
+    name,
+    hashedPassword: "OAUTH_USER_NO_PASSWORD",
+  });
+
+  return {
+    ...result,
+    isNewUser: true,
+  };
+}
+
 const register = async (req, res, next) => {
   let isPerson = false;
   if (req.body.recaptchaToken) {
@@ -80,32 +174,11 @@ const register = async (req, res, next) => {
   const hashedPassword = await hashPassword(value.password);
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      const { name, email } = value;
-      const newUser = await tx.user.create({
-        data: { name, email, hashedPassword },
-        select: { name: true, email: true, id: true },
-      });
-
-      const welcomeTaskData = [
-        {
-          title: "Complete your profile",
-          userId: newUser.id,
-          priority: "medium",
-        },
-        { title: "Add your first task", userId: newUser.id, priority: "high" },
-        { title: "Explore the app", userId: newUser.id, priority: "low" },
-      ];
-      await tx.task.createMany({ data: welcomeTaskData });
-
-      const welcomeTasks = await tx.task.findMany({
-        where: {
-          userId: newUser.id,
-          title: { in: welcomeTaskData.map((t) => t.title) },
-        },
-      });
-
-      return { user: newUser, welcomeTasks };
+    const { name, email } = value;
+    const result = await createUserWithOnboarding({
+      name,
+      email: email.toLowerCase(),
+      hashedPassword,
     });
 
     const csrfToken = setJwtCookie(req, res, result.user);
@@ -146,6 +219,12 @@ const logon = async (req, res) => {
       .json({ message: "Authentication Failed" });
   }
 
+  if (user.hashedPassword === "OAUTH_USER_NO_PASSWORD") {
+    return res
+      .status(StatusCodes.UNAUTHORIZED)
+      .json({ message: "Authentication Failed" });
+  }
+
   const isMatch = await comparePassword(password, user.hashedPassword);
   if (!isMatch) {
     return res
@@ -153,8 +232,7 @@ const logon = async (req, res) => {
       .json({ message: "Authentication Failed" });
   }
 
-  const csrfToken = setJwtCookie(req, res, user);
-  return res.json({ name: user.name, email: user.email, csrfToken: csrfToken });
+  return res.json(createSession(req, res, user));
 };
 
 const logoff = (req, res) => {
@@ -188,52 +266,15 @@ const googleLogon = async (req, res, next) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const payload = ticket.getPayload();
-    const { name, email } = payload;
+    const { name, email } = ticket.getPayload();
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-      select: { id: true, name: true, email: true },
-    });
+    const result = await findOrCreateGoogleUser({ email, name });
 
-    if (user) {
-      const csrfToken = setJwtCookie(req, res, user);
-      return res.json({ name: user.name, email: user.email, csrfToken });
+    if (!result.isNewUser) {
+      return res.json(createSession(req, res, result.user));
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
-        data: {
-          email: email.toLowerCase(),
-          name,
-          hashedPassword: "OAUTH_USER_NO_PASSWORD",
-        },
-        select: { id: true, name: true, email: true },
-      });
-
-      const welcomeTaskData = [
-        {
-          title: "Complete your profile",
-          userId: newUser.id,
-          priority: "medium",
-        },
-        { title: "Add your first task", userId: newUser.id, priority: "high" },
-        { title: "Explore the app", userId: newUser.id, priority: "low" },
-      ];
-      await tx.task.createMany({ data: welcomeTaskData });
-
-      const welcomeTasks = await tx.task.findMany({
-        where: {
-          userId: newUser.id,
-          title: { in: welcomeTaskData.map((t) => t.title) },
-        },
-      });
-
-      return { user: newUser, welcomeTasks };
-    });
-
     const csrfToken = setJwtCookie(req, res, result.user);
-
     return res.status(StatusCodes.CREATED).json({
       user: result.user,
       csrfToken: csrfToken,
@@ -241,7 +282,7 @@ const googleLogon = async (req, res, next) => {
       transactionStatus: "success",
     });
   } catch (error) {
-    if (error.message.includes("Invalid authorization code")) {
+    if (error?.message?.includes("Invalid authorization code")) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
         .json({ message: "Authentication Failed" });
