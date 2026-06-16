@@ -1,1 +1,48 @@
 Render url: https://node-homework-5kx0.onrender.com/
+
+Extra functionality added: Google OAuth login / sign-up
+
+I added "Sign in with Google" support so a user can authenticate with their
+Google account instead of an email/password. The frontend runs the Google
+OAuth authorization-code flow and sends the resulting authorization code to a
+new REST endpoint, which exchanges it for tokens, verifies the user's
+identity, and then either logs in the existing user or creates a new account.
+
+POST /api/users/googleLogon
+
+  Behavior:
+    - Exchanges the authorization code for Google tokens and verifies the ID
+      token against the configured GOOGLE_CLIENT_ID.
+    - If a user with the verified Google email already exists, they are logged
+      in. Otherwise a new user account is created from the Google profile
+      (name + email).
+    - On success, sets the auth JWT as an httpOnly cookie and returns a CSRF
+      token in the response body.
+
+  Success response (200, JSON):
+    {
+      "name": "<user name>",
+      "email": "<user email>",
+      "csrfToken": "<csrf token>"
+    }
+
+  Error responses:
+    - 400 Bad Request   { "message": "Missing authorization code" }
+        when "code" is not provided in the body.
+    - 401 Unauthorized  { "message": "Authentication Failed" }
+        when the authorization code is invalid / cannot be exchanged.
+
+  How to try it:
+    1. Complete the Google OAuth flow on the frontend to obtain a one-time
+       authorization "code".
+    2. POST that code to /api/users/googleLogon as JSON:
+         curl -X POST https://node-homework-5kx0.onrender.com/api/users/googleLogon \
+              -H "Content-Type: application/json" \
+              -d '{ "code": "<authorization_code>" }'
+    3. The response contains the user's name, email, and a CSRF token; the
+       JWT auth cookie is set automatically.
+
+  Required environment variables (server side):
+    - GOOGLE_CLIENT_ID
+    - GOOGLE_CLIENT_SECRET
+    - GOOGLE_REDIRECT_URI (defaults to http://localhost:3001 if unset)
