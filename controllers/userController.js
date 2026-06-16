@@ -172,7 +172,8 @@ const googleLogon = async (req, res, next) => {
   }
 
   try {
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3001";
+    const redirectUri =
+      process.env.GOOGLE_REDIRECT_URI || "http://localhost:3001";
     const oauth2Client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -207,6 +208,24 @@ const googleLogon = async (req, res, next) => {
         hashedPassword: "OAUTH_USER_NO_PASSWORD",
       },
       select: { id: true, name: true, email: true },
+    });
+
+    const welcomeTaskData = [
+      {
+        title: "Complete your profile",
+        userId: newUser.id,
+        priority: "medium",
+      },
+      { title: "Add your first task", userId: newUser.id, priority: "high" },
+      { title: "Explore the app", userId: newUser.id, priority: "low" },
+    ];
+    await tx.task.createMany({ data: welcomeTaskData });
+
+    const welcomeTasks = await tx.task.findMany({
+      where: {
+        userId: newUser.id,
+        title: { in: welcomeTaskData.map((t) => t.title) },
+      },
     });
 
     const csrfToken = setJwtCookie(req, res, newUser);
