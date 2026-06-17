@@ -49,6 +49,14 @@ const index = async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit), 1), 100) || 10;
   const skip = (page - 1) * limit;
 
+  const allowedSortFields = ["title", "createdAt", "isCompleted"];
+
+  const sortBy = allowedSortFields.includes(req.query.sortBy)
+    ? req.query.sortBy
+    : "createdAt";
+
+  const sortDirection = req.query.sortDirection === "asc" ? "asc" : "desc";
+
   const whereClause = { userId: req.user.id };
 
   if (req.query.find) {
@@ -75,7 +83,7 @@ const index = async (req, res) => {
     },
     skip: skip,
     take: limit,
-    orderBy: { createdAt: "desc" },
+    orderBy: { [sortBy]: sortDirection },
   });
 
   const totalTasks = await prisma.task.count({
