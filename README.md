@@ -4,6 +4,8 @@ A secure, full-featured task management REST API built with Node.js, Express, an
 
 The API is designed to be consumed by a separate React front end, but every endpoint can also be exercised directly with Postman or `curl`.
 
+[Demo Video](https://youtu.be/TWBpCzpGuN0)
+
 ## Project Overview
 
 This API lets a user:
